@@ -60,6 +60,7 @@ public class ClientGet implements Runnable {
         successCount.incrementAndGet();
       } else {
         failCount.incrementAndGet();
+
         System.err.println("Post Method failed: " + statusCode);
       }
 

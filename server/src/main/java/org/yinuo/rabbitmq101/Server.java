@@ -1,28 +1,30 @@
 package org.yinuo.rabbitmq101;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
-
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
-import java.sql.Statement;
-import java.sql.SQLException;
-import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-
-
-import javax.servlet.*;
-import javax.servlet.annotation.*;
-import javax.servlet.http.*;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
-import java.sql.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.MultipartConfig;
+import javax.servlet.annotation.WebServlet;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 
 @WebServlet(name = "Server", value = "/*")
 @MultipartConfig
@@ -37,8 +39,8 @@ public class Server extends HttpServlet {
       Class.forName("com.mysql.cj.jdbc.Driver");
 
       java.sql.Connection initialConnection = DriverManager.getConnection(
-          "jdbc:mysql://host.docker.internal:3306/?useSSL=false&allowPublicKeyRetrieval=true",
-          "root",
+          "jdbc:mysql://database-1.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/?useSSL=false&allowPublicKeyRetrieval=true",
+          "admin",
           "20011016"
       );
       // Create the database if it doesn't exist
@@ -48,8 +50,8 @@ public class Server extends HttpServlet {
       initialConnection.close();
 
       dbConnection = DriverManager.getConnection(
-          "jdbc:mysql://host.docker.internal:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
-          "root",
+          "jdbc:mysql://database-1.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
+          "admin",
           "20011016"
       );
 
@@ -66,8 +68,8 @@ public class Server extends HttpServlet {
         + "artist VARCHAR(255) NOT NULL,"
         + "title VARCHAR(255) NOT NULL,"
         + "year INT NOT NULL,"
-        + "image LONGBLOB NOT NULL,"
-        + "image_size BIGINT NOT NULL"
+        + "image LONGBLOB,"
+        + "image_size BIGINT"
         + ")";
 
     String createReviewsTable = "CREATE TABLE IF NOT EXISTS album_reviews ("
@@ -75,7 +77,6 @@ public class Server extends HttpServlet {
         + "album_id INT NOT NULL,"
         + "review_type ENUM('like', 'dislike'),"
         + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
-        + "UNIQUE (album_id),"
         + "FOREIGN KEY (album_id) REFERENCES albums(id)"
         + ")";
 
@@ -219,20 +220,21 @@ public class Server extends HttpServlet {
           imageSize = imageData.length;
         }
       }
-      if (p.getName().equals("profile[artist]")) {
-        artist = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-      }
-      if (p.getName().equals("profile[title]")) {
-        title = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-      }
-      if (p.getName().equals("profile[year]")) {
-        yearStr = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+      if (p.getName().equals("profile")) {  // Match the exact name in the client
+        String profileJson = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+        JsonObject jsonObject = JsonParser.parseString(profileJson).getAsJsonObject();
+        artist = jsonObject.get("artist").getAsString();
+        title = jsonObject.get("title").getAsString();
+        yearStr = jsonObject.get("year").getAsString();
       }
     }
 
-    System.out.println("DEBUG: Received artist: " + artist);
-    System.out.println("DEBUG: Received title: " + title);
-    System.out.println("DEBUG: Received year: " + yearStr);
+    //Debug
+    if (yearStr == null || yearStr.trim().isEmpty()) {
+      response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+      response.getWriter().write("Invalid or missing 'year' field.");
+      return;
+    }
 
     try {
       PreparedStatement stmt = dbConnection.prepareStatement(
@@ -274,8 +276,9 @@ public class Server extends HttpServlet {
       response.setStatus(HttpServletResponse.SC_CREATED);
       response.getWriter().write("Review submitted.");
     } catch (Exception e) {
+      e.printStackTrace();
       response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-      response.getWriter().write("Failed to publish review.");
+      response.getWriter().write("Failed to publish review." + e.getMessage());
     }
   }
 

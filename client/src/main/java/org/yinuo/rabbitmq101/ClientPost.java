@@ -3,6 +3,7 @@ package org.yinuo.rabbitmq101;
 import com.codahale.metrics.MetricAttribute;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -15,6 +16,7 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -39,11 +41,8 @@ public class ClientPost implements Runnable {
 
   // stolen from https://hc.apache.org/httpclient-legacy/tutorial.html
   public void run() {
-    //long starttime = System.currentTimeMillis();
-    //System.out.println("POST START: " + starttime + Thread.currentThread().getName());
     MultipartEntityBuilder builder = MultipartEntityBuilder.create();
     builder.setMode(HttpMultipartMode.STRICT);
-
     // 1. Add the file part
     builder.addBinaryBody(
         "image",
@@ -51,7 +50,6 @@ public class ClientPost implements Runnable {
         ContentType.IMAGE_JPEG,
         "Example.jpg"
     );
-
     // 2. Add the profile field as a single JSON string
     // Example JSON: {"artist":"AgustD","title":"D-Day","year":"2023"}
     // Modify these values or pass them in as parameters if needed
@@ -65,16 +63,11 @@ public class ClientPost implements Runnable {
     // Create a post method instance.
     HttpPost postMethod = new HttpPost(postAlbumUrl);
 
-    // Provide custom retry handler is necessary
-    /*postMethod.getParams().setParameter(HttpMethodParams.RETRY_HANDLER,
-        new DefaultHttpMethodRetryHandler(5, true));
-    */
     try {
       postMethod.setEntity(entity);
       long start = System.currentTimeMillis();
       CloseableHttpResponse response = client.execute(postMethod);
       //postMethod.setRequestEntity(new MultipartRequestEntity(parts, postMethod.getParams()));
-
 
       int statusCode = response.getCode();
       // Distinguish success vs failure
@@ -82,6 +75,7 @@ public class ClientPost implements Runnable {
         successCount.incrementAndGet();
       } else {
         failCount.incrementAndGet();
+        // print error message
         System.err.println("Post Method failed: " + statusCode);
       }
 
@@ -90,18 +84,18 @@ public class ClientPost implements Runnable {
       long latency = end - start;
       data.add(RowFactory.create(start, "POST", latency, statusCode));
 
-      // Read the response body.
-      //byte[] responseBody = response.getEntity().getContent().readAllBytes();
-      //System.out.println(new String(responseBody));
-
       // Consume response content
       EntityUtils.consume(response.getEntity());
-      //long endtime = System.currentTimeMillis();
-      //System.out.println("POST END: " + endtime + Thread.currentThread().getName());
     } catch (IOException e) {
       System.err.println("Fatal transport error: " + e.getMessage());
       e.printStackTrace();
     }
+  }
+
+  public void postThreeReviews() {
+    postReview(1, "like");
+    postReview(1, "like");
+    postReview(1, "dislike");
   }
 
   // Post reviews that indicate a like/dislike for the album
