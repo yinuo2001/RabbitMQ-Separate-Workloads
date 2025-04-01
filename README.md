@@ -20,4 +20,4 @@ Message flow as in posting reviews:
 3. RabbitMQ stores the message in likeQueue
 4. MQConsumer reads the message and inserts it into the MySQL database
 
-** In this project, the client sends PostReview and GetReview requests to the server. The difference between post and get lies in the post requests is forwarded by RabbitMQ while get requests go to the database directly.**
+**In this project, the client sends PostReview and GetReview requests to the server. The difference between post and get lies in the post requests is forwarded by RabbitMQ while get requests go to the database directly.**
