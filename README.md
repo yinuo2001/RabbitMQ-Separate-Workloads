@@ -36,7 +36,7 @@ Above is the replica setting.
 
 However, as shown in the image above, read throughput did not increase. What's more, the post throughput decreases, possibly due to the existence of read replica, which causes overhead when sychronizing between main database and replica one.
 
-
+![image](cloudwatch.png)
 
 Based on this observation, I have a temporary conclusion that read replica only increases throughput when database is the bottleneck. The current situation might be: it is the POST operations overwhelms the system.
 
