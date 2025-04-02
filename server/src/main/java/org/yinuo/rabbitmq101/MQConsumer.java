@@ -9,20 +9,23 @@ import java.sql.SQLException;
 
 public class MQConsumer {
   private static final String QUEUE_NAME = "likeQueue";
-  private static java.sql.Connection dbConnection;
+  private static PreparedStatement insertStatement;
 
   /**
    * Rewrites the main function to enable this consumer called from the server.
-   * @throws Exception
    */
   public static void startConsuming() throws Exception {
     // Initialize MySQL connection
     Class.forName("com.mysql.cj.jdbc.Driver");
-    dbConnection = DriverManager.getConnection(
+    java.sql.Connection dbConnection = DriverManager.getConnection(
         "jdbc:mysql://database-1.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
         "admin",
         "20011016"
     );
+
+    insertStatement = dbConnection.prepareStatement(
+        "INSERT INTO album_reviews (album_id, review_type) VALUES (?, ?)"
+    + " ON DUPLICATE KEY UPDATE review_type = VALUES(review_type)");
 
     ConnectionFactory factory = new ConnectionFactory();
     factory.setHost("localhost");
@@ -53,52 +56,13 @@ public class MQConsumer {
   }
 
   private static void saveReviewToDatabase(int albumId, String reviewType) {
-    try (PreparedStatement stmt = dbConnection.prepareStatement(
-        "INSERT INTO album_reviews (album_id, review_type) VALUES (?, ?) "
-            + "ON DUPLICATE KEY UPDATE review_type = VALUES(review_type)")) {
-      stmt.setInt(1, albumId);
-      stmt.setString(2, reviewType);
-      stmt.executeUpdate();
+    try {
+      insertStatement.setInt(1, albumId);
+      insertStatement.setString(2, reviewType);
+      insertStatement.executeUpdate();
       System.out.println("✅ Review saved to database: album_id=" + albumId + ", review_type=" + reviewType);
     } catch (SQLException e) {
       e.printStackTrace();
     }
   }
-
-//  public static void main(String[] argv) throws Exception {
-//    // Initialize MySQL connection
-//    Class.forName("com.mysql.cj.jdbc.Driver");
-//    dbConnection = DriverManager.getConnection(
-//        "jdbc:mysql://localhost:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
-//        "root",
-//        "20011016"
-//    );
-//
-//    ConnectionFactory factory = new ConnectionFactory();
-//    factory.setHost("localhost");
-//    Connection connection = factory.newConnection();
-//    Channel channel = connection.createChannel();
-//
-//    channel.queueDeclare(QUEUE_NAME, true, false, false, null);
-//    System.out.println("✅ Waiting for review messages...");
-//
-//    DeliverCallback deliverCallback = (consumerTag, delivery) -> {
-//      String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
-//      System.out.println("📥 Received Review: " + message);
-//
-//      // Parse message format: "albumId,reviewType"
-//      String[] parts = message.split(",");
-//      int albumId = Integer.parseInt(parts[0]);
-//      String reviewType = parts[1];
-//
-//      // Insert into MySQL
-//      saveReviewToDatabase(albumId, reviewType);
-//
-//      // Acknowledge message processing
-//      channel.basicAck(delivery.getEnvelope().getDeliveryTag(), false);
-//    };
-//
-//    channel.basicConsume(QUEUE_NAME, false, deliverCallback, consumerTag -> {});
-//
-//  }
 }
