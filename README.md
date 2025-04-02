@@ -28,3 +28,10 @@ In the beginning, the read throughput was overwhelmingly low.
 ![image](1.png)
 I had an assumption that it might be due to rabbitmq taking too much of database connections. To solve this potential issue, I added a read replica to the database and forwarded all read reviews requests to this replica.
 
+![image](2.png)
+
+However, as shown in the image above, read throughput did not increase. What's more, the post throughput decreases, possibly due to the existence of read replica, which causes overhead when sychronizing between main database and replica one.
+
+Based on this observation, I have an assumption that read replica only increases throughput when GET operations are the bottleneck. The current situation is: it is the POST operations overwhelms the system.
+
+
