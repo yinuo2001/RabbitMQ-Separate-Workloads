@@ -29,7 +29,8 @@ import javax.servlet.http.Part;
 @WebServlet(name = "Server", value = "/*")
 @MultipartConfig
 public class Server extends HttpServlet {
-  private java.sql.Connection dbConnection;
+  private java.sql.Connection writeConnection;
+  private java.sql.Connection readConnection;
   private static final String QUEUE_NAME = "likeQueue";
 
   @Override
@@ -49,8 +50,14 @@ public class Server extends HttpServlet {
       }
       initialConnection.close();
 
-      dbConnection = DriverManager.getConnection(
+      writeConnection = DriverManager.getConnection(
           "jdbc:mysql://database-1.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
+          "admin",
+          "20011016"
+      );
+
+      readConnection = DriverManager.getConnection(
+          "jdbc:mysql://replica.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
           "admin",
           "20011016"
       );
@@ -80,7 +87,7 @@ public class Server extends HttpServlet {
         + "FOREIGN KEY (album_id) REFERENCES albums(id)"
         + ")";
 
-    try (Statement stmt = dbConnection.createStatement()) {
+    try (Statement stmt = writeConnection.createStatement()) {
       stmt.execute(createAlbumsTable);
       stmt.execute(createReviewsTable);
     }
@@ -116,7 +123,7 @@ public class Server extends HttpServlet {
   }
 
   private void getAllAlbums(HttpServletResponse response) throws IOException {
-    try (Statement stmt = dbConnection.createStatement();
+    try (Statement stmt = readConnection.createStatement();
          ResultSet rs = stmt.executeQuery("SELECT id, artist, title, year FROM albums")) {
 
       List<Album> albums = new ArrayList<>();
@@ -137,7 +144,7 @@ public class Server extends HttpServlet {
   }
 
   private void getAlbumById(String albumId, HttpServletResponse response) throws IOException {
-    try (PreparedStatement stmt = dbConnection.prepareStatement(
+    try (PreparedStatement stmt = readConnection.prepareStatement(
         "SELECT id, artist, title, year FROM albums WHERE id = ?")) {
       stmt.setInt(1, Integer.parseInt(albumId));
       ResultSet rs = stmt.executeQuery();
@@ -162,7 +169,7 @@ public class Server extends HttpServlet {
   }
 
   private void getAlbumReviews(String albumId, HttpServletResponse response) throws IOException {
-    try (PreparedStatement stmt = dbConnection.prepareStatement(
+    try (PreparedStatement stmt = readConnection.prepareStatement(
         "SELECT review_type, COUNT(*) as count FROM album_reviews WHERE album_id = ? GROUP BY review_type")) {
       stmt.setInt(1, Integer.parseInt(albumId));
       ResultSet rs = stmt.executeQuery();
@@ -237,7 +244,7 @@ public class Server extends HttpServlet {
     }
 
     try {
-      PreparedStatement stmt = dbConnection.prepareStatement(
+      PreparedStatement stmt = writeConnection.prepareStatement(
           "INSERT INTO albums (artist, title, year, image, image_size) VALUES (?, ?, ?, ?, ?)",
           Statement.RETURN_GENERATED_KEYS
       );
@@ -297,7 +304,8 @@ public class Server extends HttpServlet {
   @Override
   public void destroy() {
     try {
-      if (dbConnection != null) dbConnection.close();
+      if (writeConnection != null) writeConnection.close();
+      if (readConnection != null) readConnection.close();
     } catch (SQLException e) {
       e.printStackTrace();
     }
