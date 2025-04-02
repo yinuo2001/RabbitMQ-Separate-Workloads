@@ -8,6 +8,7 @@ import com.rabbitmq.client.ConnectionFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -31,7 +32,7 @@ import javax.servlet.http.Part;
 @MultipartConfig
 public class Server extends HttpServlet {
   private java.sql.Connection writeConnection;
-  private java.sql.Connection readConnection;
+  //private java.sql.Connection readConnection;
   private static final String QUEUE_NAME = "likeQueue";
   private com.rabbitmq.client.Connection mqConnection;
 
@@ -62,11 +63,11 @@ public class Server extends HttpServlet {
           "20011016"
       );
 
-      readConnection = DriverManager.getConnection(
-          "jdbc:mysql://replica.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
-          "admin",
-          "20011016"
-      );
+//      readConnection = DriverManager.getConnection(
+//          "jdbc:mysql://replica.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
+//          "admin",
+//          "20011016"
+//      );
 
       // Initialize RabbitMQ connection
       ConnectionFactory factory = new ConnectionFactory();
@@ -141,7 +142,12 @@ public class Server extends HttpServlet {
   }
 
   private void getAllAlbums(HttpServletResponse response) throws IOException {
-    try (Statement stmt = readConnection.createStatement();
+    try (Connection readConnection = DriverManager.getConnection(
+        "jdbc:mysql://replica.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
+        "admin",
+        "20011016"
+    );
+        Statement stmt = readConnection.createStatement();
          ResultSet rs = stmt.executeQuery("SELECT id, artist, title, year FROM albums")) {
 
       List<Album> albums = new ArrayList<>();
@@ -162,7 +168,12 @@ public class Server extends HttpServlet {
   }
 
   private void getAlbumById(String albumId, HttpServletResponse response) throws IOException {
-    try (PreparedStatement stmt = readConnection.prepareStatement(
+    try (Connection readConnection = DriverManager.getConnection(
+        "jdbc:mysql://replica.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
+        "admin",
+        "20011016"
+    );
+        PreparedStatement stmt = readConnection.prepareStatement(
         "SELECT id, artist, title, year FROM albums WHERE id = ?")) {
       stmt.setInt(1, Integer.parseInt(albumId));
       ResultSet rs = stmt.executeQuery();
@@ -187,7 +198,12 @@ public class Server extends HttpServlet {
   }
 
   private void getAlbumReviews(String albumId, HttpServletResponse response) throws IOException {
-    try (PreparedStatement stmt = readConnection.prepareStatement(
+    try (Connection readConnection = DriverManager.getConnection(
+        "jdbc:mysql://replica.ckttmr66bufd.us-west-2.rds.amazonaws.com:3306/album_store?useSSL=false&allowPublicKeyRetrieval=true",
+        "admin",
+        "20011016"
+    );
+         PreparedStatement stmt = readConnection.prepareStatement(
         "SELECT review_type, COUNT(*) as count FROM album_reviews WHERE album_id = ? GROUP BY review_type")) {
       stmt.setInt(1, Integer.parseInt(albumId));
       ResultSet rs = stmt.executeQuery();
@@ -327,7 +343,6 @@ public class Server extends HttpServlet {
   public void destroy() {
     try {
       if (writeConnection != null) writeConnection.close();
-      if (readConnection != null) readConnection.close();
       if (mqConnection != null) mqConnection.close();
     } catch (SQLException e) {
       e.printStackTrace();

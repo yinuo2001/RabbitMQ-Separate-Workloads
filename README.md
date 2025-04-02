@@ -47,3 +47,7 @@ the process of posting reviews and consequently, helping with the read throughpu
 ![image](3.png)
 
 However, as shown above, it only helps with POST throughput. The finished read requests still have a really low number.
+
+I also tried initiating a new read connection each time the process is called, but it did not help with the read throughput. See below.
+
+![image](4.png)
