@@ -26,7 +26,7 @@ public class Main {
   private static volatile boolean keepRunning = true;
 
   // IP address of the java servlet server
-  private static final String IPAddr = "35.91.187.149:8080/server_war";
+  private static final String IPAddr = "44.247.247.129:8080/server_war";
   private static final String FILE_PATH = "/Users/elise/Desktop/RabbitmqImplementation/client/src/main/resources/Example.jpg";
 
   public static void main(String[] args) {
