@@ -21,3 +21,10 @@ Message flow as in posting reviews:
 4. MQConsumer reads the message and inserts it into the MySQL database
 
 **In this project, the client sends PostReview and GetReview requests to the server. The difference between post and get lies in the post requests is forwarded by RabbitMQ while get requests go to the database directly.**
+
+## Results
+
+In the beginning, the read throughput was overwhelmingly low.
+![image](1.png)
+I had an assumption that it might be due to rabbitmq taking too much of database connections. To solve this potential issue, I added a read replica to the database and forwarded all read reviews requests to this replica.
+
