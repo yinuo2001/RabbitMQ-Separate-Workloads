@@ -40,4 +40,10 @@ However, as shown in the image above, read throughput did not increase. What's m
 
 Based on this observation, I have a temporary conclusion that read replica only increases throughput when database is the bottleneck. The current situation might be: it is the POST operations overwhelms the system.
 
+Knowing the bottleneck might lie in Server side, especially MQ consumer probably taking too many connections to the database,
+I decided to add a connection pool to the server. At the same time, I made the consumer multi-threaded as well, hoping to speed up
+the process of posting reviews and consequently, helping with the read throughput.
 
+![image](3.png)
+
+However, as shown above, it only helps with POST throughput. The finished read requests still have a really low number.
